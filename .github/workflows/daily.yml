@@ -1,0 +1,39 @@
+name: Daily Fetch
+on:
+  schedule:
+    # 每天北京时间早上 8 点运行 (UTC 0:00)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # 允许手动点按钮运行
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.9'
+          
+      - name: Install dependencies
+        run: |
+          pip install requests pandas openai
+          
+      - name: Run script
+        env:
+          # 在 GitHub 仓库 Settings -> Secrets 里配置这两个变量
+          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          AI_API_KEY: ${{ secrets.AI_API_KEY }}
+          # 可选：如果使用飞书功能，配置以下变量
+          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
+          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
+          FEISHU_SPREADSHEET_TOKEN: ${{ secrets.FEISHU_SPREADSHEET_TOKEN }}
+          FEISHU_SHEET_ID: ${{ secrets.FEISHU_SHEET_ID }}
+        run: python main.py
+        
+      - name: Upload result
+        uses: actions/upload-artifact@v2
+        with:
+          name: daily-report
+          path: ./*.csv
