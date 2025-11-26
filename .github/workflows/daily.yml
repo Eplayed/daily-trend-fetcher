@@ -18,18 +18,20 @@ jobs:
           
       - name: Install dependencies
         run: |
-          pip install requests pandas openai
+          pip install -r requirements.txt
           
       - name: Run script
         env:
-          # 在 GitHub 仓库 Settings -> Secrets 里配置这两个变量
+          # 在 GitHub 仓库 Settings -> Secrets 里配置这些变量
           GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
-          # 可选：如果使用飞书功能，配置以下变量
-          FEISHU_APP_ID: ${{ secrets.FEISHU_APP_ID }}
-          FEISHU_APP_SECRET: ${{ secrets.FEISHU_APP_SECRET }}
-          FEISHU_SPREADSHEET_TOKEN: ${{ secrets.FEISHU_SPREADSHEET_TOKEN }}
-          FEISHU_SHEET_ID: ${{ secrets.FEISHU_SHEET_ID }}
+          AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
+          AI_MODEL: ${{ secrets.AI_MODEL }}
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          OSS_BUCKET_NAME: ${{ secrets.OSS_BUCKET_NAME }}
+          OSS_FILE_PATH: ${{ secrets.OSS_FILE_PATH }}
         run: python main.py
         
       - name: Upload result

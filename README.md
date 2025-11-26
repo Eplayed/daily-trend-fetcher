@@ -1,14 +1,15 @@
 # GitHub 每日热门项目抓取工具
 
-这是一个自动化脚本，可以每天抓取 GitHub 上最新热门的项目，并使用 AI 生成中文推荐语和分类信息，最终导出为 CSV 文件或自动同步到飞书表格。
+这是一个自动化脚本，可以每天抓取 GitHub 上最新热门的项目，并使用 AI 生成中文推荐语和分类信息，最终导出为 CSV 文件并上传到阿里云 OSS。
 
 ## 功能特点
 
 - 📊 自动抓取过去 24 小时内 Star 数增长最快的 GitHub 项目
 - 🤖 使用 AI（OpenAI/DeepSeek）分析项目，生成中文推荐语和分类
 - 📁 导出为 CSV 文件，可直接用 Excel 打开
-- 📈 支持自动同步到飞书表格，手机即可查看
-- ⚡ 通过 GitHub Actions 实现完全自动化，无需服务器
+- ☁️ 自动上传 CSV 文件到阿里云 OSS，便于查看和分享
+- ⚡ 支持部署到阿里云函数计算 FC，实现完全自动化
+- 🔄 通过 GitHub Actions 实现每日定时执行
 
 ## 准备工作
 
@@ -24,11 +25,10 @@
 - 推荐使用 DeepSeek（价格便宜，中文支持好），注册并获取 API Key
 - 也可以使用 OpenAI API Key
 
-### 3. 飞书配置（可选）
-如果需要将数据同步到飞书表格，需要准备：
-- 飞书开放平台账号
-- 创建飞书应用并获取 App ID 和 App Secret
-- 准备一个飞书表格并获取表格 Token 和工作表 ID
+### 3. 阿里云 OSS 配置
+- 阿里云账号
+- 创建 OSS Bucket
+- 获取 AccessKey ID、AccessKey Secret、Endpoint 和 Bucket 名称
 
 ### 4. Python 环境
 - 如果你想在本地运行，需要安装 Python 3.6 或更高版本
@@ -38,28 +38,82 @@
 ### 安装依赖
 
 ```bash
-pip install requests pandas openai
+pip install -r requirements.txt
 ```
 
-### 配置脚本
+## 安全配置指南
 
-编辑 `main.py` 文件，填入你的配置：
+**重要提示：** 永远不要将API密钥、密码等敏感信息直接硬编码在代码中或提交到GitHub仓库！本项目提供了以下安全的配置方式：
 
-```python
-# 1. GitHub Token
-GITHUB_TOKEN = "你的_GITHUB_TOKEN"
+### 环境变量配置
 
-# 2. AI 配置
-AI_API_KEY = "你的_AI_API_KEY"
-AI_BASE_URL = "https://api.deepseek.com" # 或 https://api.openai.com/v1
-AI_MODEL = "deepseek-chat" # 或 gpt-3.5-turbo / gpt-4o-mini
+所有敏感信息都应该通过环境变量设置。以下是可用的环境变量：
 
-# 3. 飞书配置 (可选)
-FEISHU_APP_ID = "你的飞书应用APP_ID"  # 如不需要飞书功能可留空
-FEISHU_APP_SECRET = "你的飞书应用APP_SECRET"  # 如不需要飞书功能可留空
-FEISHU_SPREADSHEET_TOKEN = "你的飞书表格TOKEN"  # 如不需要飞书功能可留空
-FEISHU_SHEET_ID = "你的飞书表格工作表ID"  # 如不需要飞书功能可留空
+```bash
+# GitHub Token
+GITHUB_TOKEN="您的GitHub Token"
+
+# AI 配置
+AI_API_KEY="您的AI API密钥"
+AI_BASE_URL="AI API的基础URL"
+AI_MODEL="使用的AI模型名称"
+
+# 阿里云OSS配置
+OSS_ACCESS_KEY_ID="您的OSS AccessKey ID"
+OSS_ACCESS_KEY_SECRET="您的OSS AccessKey Secret"
+OSS_ENDPOINT="您的OSS Endpoint"
+OSS_BUCKET_NAME="您的OSS Bucket名称"
+OSS_FILE_PATH="文件在OSS中的存储路径"
 ```
+
+### 本地开发时配置
+
+**Windows:**
+```cmd
+set GITHUB_TOKEN="您的GitHub Token"
+set AI_API_KEY="您的AI API密钥"
+set AI_BASE_URL="https://api.openai.com/v1"
+set AI_MODEL="gpt-3.5-turbo"
+set OSS_ACCESS_KEY_ID="您的OSS AccessKey ID"
+set OSS_ACCESS_KEY_SECRET="您的OSS AccessKey Secret"
+set OSS_ENDPOINT="oss-cn-hangzhou.aliyuncs.com"
+set OSS_BUCKET_NAME="您的OSS Bucket名称"
+set OSS_FILE_PATH="github_trends/"
+```
+
+**macOS/Linux:**
+```bash
+export GITHUB_TOKEN="您的GitHub Token"
+export AI_API_KEY="您的AI API密钥"
+export AI_BASE_URL="https://api.openai.com/v1"
+export AI_MODEL="gpt-3.5-turbo"
+export OSS_ACCESS_KEY_ID="您的OSS AccessKey ID"
+export OSS_ACCESS_KEY_SECRET="您的OSS AccessKey Secret"
+export OSS_ENDPOINT="oss-cn-hangzhou.aliyuncs.com"
+export OSS_BUCKET_NAME="您的OSS Bucket名称"
+export OSS_FILE_PATH="github_trends/"
+```
+
+您也可以创建一个 `.env` 文件并使用 `python-dotenv` 库来加载环境变量，但请确保将 `.env` 文件添加到 `.gitignore` 中。
+
+### GitHub Actions 配置
+
+当使用GitHub Actions自动运行时，请按照以下步骤配置敏感信息：
+
+1. 进入您的GitHub仓库
+2. 点击 "Settings" -> "Secrets and variables" -> "Actions"
+3. 点击 "New repository secret" 添加以下密钥：
+   - `MY_GITHUB_TOKEN`: 您的GitHub Token
+   - `AI_API_KEY`: 您的AI API密钥
+   - `AI_BASE_URL`: AI API的基础URL
+   - `AI_MODEL`: 使用的AI模型名称
+   - `OSS_ACCESS_KEY_ID`: 您的OSS AccessKey ID
+   - `OSS_ACCESS_KEY_SECRET`: 您的OSS AccessKey Secret
+   - `OSS_ENDPOINT`: 您的OSS Endpoint
+   - `OSS_BUCKET_NAME`: 您的OSS Bucket名称
+   - `OSS_FILE_PATH`: 文件在OSS中的存储路径
+
+GitHub Actions工作流文件已正确配置为从secrets中读取这些值，无需修改。
 
 ### 运行脚本
 
@@ -67,7 +121,7 @@ FEISHU_SHEET_ID = "你的飞书表格工作表ID"  # 如不需要飞书功能可
 python main.py
 ```
 
-运行完成后，会在当前目录生成一个 CSV 文件，包含当天的热门项目信息。
+运行完成后，会在当前目录生成一个 CSV 文件，并自动上传到阿里云 OSS。
 
 ## GitHub Actions 自动化配置
 
@@ -84,20 +138,81 @@ python main.py
 - **必须配置的密钥：**
   - `MY_GITHUB_TOKEN`: 你的 GitHub Token
   - `AI_API_KEY`: 你的 AI API Key
-  
-- **如果使用飞书功能，还需配置：**
-  - `FEISHU_APP_ID`: 你的飞书应用 App ID
-  - `FEISHU_APP_SECRET`: 你的飞书应用 App Secret
-  - `FEISHU_SPREADSHEET_TOKEN`: 你的飞书表格 Token
-  - `FEISHU_SHEET_ID`: 你的飞书表格工作表 ID
+  - `AI_BASE_URL`: AI API的基础URL（默认：https://api.openai.com/v1）
+  - `AI_MODEL`: 使用的AI模型名称（默认：gpt-3.5-turbo）
+  - `OSS_ACCESS_KEY_ID`: 你的OSS AccessKey ID
+  - `OSS_ACCESS_KEY_SECRET`: 你的OSS AccessKey Secret
+  - `OSS_ENDPOINT`: 你的OSS Endpoint
+  - `OSS_BUCKET_NAME`: 你的OSS Bucket名称
+  - `OSS_FILE_PATH`: 文件在OSS中的存储路径（默认：github_trends/）
 
 ### 3. 启用工作流
 
 GitHub Actions 工作流配置已包含在 `.github/workflows/daily.yml` 文件中，它会：
 - 每天 UTC 时间 0:00（北京时间早上 8 点）自动运行
 - 运行后将生成的 CSV 文件作为 Artifact 上传
+- 自动上传 CSV 文件到阿里云 OSS
 
 你可以在仓库的 `Actions` 页面手动触发运行或查看历史运行结果。
+
+## 阿里云函数计算 FC 部署指南
+
+该脚本可以部署到阿里云函数计算 FC，实现更稳定的自动化运行。
+
+### 1. 准备工作
+
+- 阿里云账号
+- 已创建的函数计算服务
+- 已创建的 OSS Bucket（用于存储生成的 CSV 文件）
+
+### 2. 创建函数
+
+1. 登录阿里云函数计算控制台
+2. 在左侧导航栏中选择 "函数服务"
+3. 点击 "创建函数"
+4. 选择 "自定义运行时"
+5. 配置函数基本信息：
+   - 函数名称：daily-trend-fetcher
+   - 运行时环境：Python 3.9
+   - 内存规格：256 MB
+   - 超时时间：60 秒
+
+### 3. 上传代码
+
+1. 将 main.py 和 requirements.txt 文件打包成 zip 格式
+2. 在函数配置页面，点击 "上传代码包"
+3. 选择打包好的 zip 文件
+4. 点击 "确定"
+
+### 4. 配置环境变量
+
+在函数配置页面，点击 "环境变量" 标签页，添加以下环境变量：
+
+- GITHUB_TOKEN: 你的 GitHub Token
+- AI_API_KEY: 你的 AI API Key
+- AI_BASE_URL: AI API的基础URL
+- AI_MODEL: 使用的AI模型名称
+- OSS_ACCESS_KEY_ID: 你的OSS AccessKey ID
+- OSS_ACCESS_KEY_SECRET: 你的OSS AccessKey Secret
+- OSS_ENDPOINT: 你的OSS Endpoint
+- OSS_BUCKET_NAME: 你的OSS Bucket名称
+- OSS_FILE_PATH: 文件在OSS中的存储路径
+
+### 5. 配置触发器
+
+1. 在函数配置页面，点击 "触发器配置" 标签页
+2. 点击 "创建触发器"
+3. 选择 "定时触发器"
+4. 配置触发器信息：
+   - 触发器名称：daily-trigger
+   - 触发方式：定时触发
+   - Cron表达式：0 8 * * * （每天北京时间8点触发）
+
+### 6. 测试函数
+
+1. 在函数配置页面，点击 "函数代码" 标签页
+2. 点击 "测试函数"
+3. 查看函数执行日志和结果
 
 ## 数据说明
 
@@ -112,126 +227,31 @@ GitHub Actions 工作流配置已包含在 `.github/workflows/daily.yml` 文件�
 - **链接**：GitHub 项目链接
 - **原始描述**：项目的原始英文描述
 
-## 飞书云文档表格配置指南
+## 阿里云 OSS 配置指南
 
-如果您想将数据同步到飞书表格，需要进行以下配置：
+### 创建 OSS Bucket
 
-### 4.1 创建飞书云文档表格
+1. 登录阿里云 OSS 管理控制台
+2. 在左侧导航栏中选择 "Bucket列表"
+3. 点击 "创建Bucket"
+4. 配置 Bucket 信息：
+   - Bucket名称：选择一个全局唯一的名称
+   - 地域：选择离你较近的地域
+   - 存储类型：标准存储
+   - 读写权限：公共读（根据实际需求选择）
 
-1. 打开飞书，创建一个新的云文档表格
-2. 确保表格具有适当的列结构，程序会自动创建所需的列
+### 获取 OSS 配置信息
 
-### 4.2 创建飞书企业自建应用
+1. 在 Bucket 列表页面，点击创建好的 Bucket 名称
+2. 在左侧导航栏中选择 "基础设置" -> "概览"
+3. 获取 Endpoint 信息（例如：oss-cn-hangzhou.aliyuncs.com）
 
-1. 访问 [飞书开发者中心](https://open.feishu.cn/app)
-2. 点击「创建企业自建应用」
-3. 填写应用名称和描述，创建应用
+### 创建 AccessKey
 
-### 4.3 配置应用基础权限
-
-1. 在应用详情页中，找到「权限管理」部分
-2. 添加以下**基础文档权限**：
-   - `获取文档元数据`: 用于获取表格基本信息
-   - `文档内容读`: 用于读取表格内容
-   - `文档内容写`: 用于写入表格内容
-
-3. 添加以下**电子表格权限**（针对普通表格）：
-   - `sheets:spreadsheet:readonly`: 读取电子表格元数据
-   - `sheets:spreadsheet:write`: 写入电子表格元数据
-   - `sheets:sheet:readonly`: 读取电子表格内工作表数据
-   - `sheets:sheet:write`: 写入电子表格内工作表数据
-
-4. 添加以下**智能表格权限**（如果使用智能表）：
-   - `bitable:app:readonly`: 读取智能表应用元数据
-   - `bitable:app:write`: 写入智能表应用元数据
-   - `bitable:table:readonly`: 读取智能表表格数据
-   - `bitable:table:write`: 写入智能表表格数据
-
-5. 保存权限配置
-
-### 4.4 获取应用凭证
-
-1. 在应用详情页中，找到「凭证与基础信息」部分
-2. 获取 `App ID` 和 `App Secret`，这些将用于环境变量配置
-   - 当前配置的App ID: `cli_a9acdd01b5f85bde`
-
-### 4.5 获取表格信息
-
-方法一：从URL获取
-
-1. 打开您的飞书表格：`https://ai.feishu.cn/sheets/YyQ8smi5vhIiThtOpVZco1HInDg?sheet=5beb2b`
-2. 从浏览器地址栏复制URL
-3. 提取以下值：
-   - `FEISHU_SPREADSHEET_TOKEN`: `YyQ8smi5vhIiThtOpVZco1HInDg` (URL路径部分)
-   - `FEISHU_SHEET_ID`: `5beb2b` (URL参数sheet的值)
-
-方法二：通过工作表信息获取
-
-1. 打开您创建的飞书表格
-2. 右键点击底部的工作表标签
-3. 选择「查看工作表信息」
-4. 复制「Sheet ID」字段值
-
-### 4.6 配置环境变量
-
-根据您获取的信息，配置以下环境变量：
-
-```bash
-# 飞书配置
-FEISHU_APP_ID="cli_a9acdd01b5f85bde"
-FEISHU_APP_SECRET="您的飞书应用密钥"
-FEISHU_SPREADSHEET_TOKEN="YyQ8smi5vhIiThtOpVZco1HInDg"
-FEISHU_SHEET_ID="5beb2b"
-```
-
-或者直接在代码中修改默认值（已配置了正确的文档ID和Sheet ID）。
-
-### 4.7 发布应用
-
-**重要：应用必须发布后才能正常访问API！**
-
-1. 在应用详情页中，找到「版本管理与发布」部分
-2. 创建一个新版本并发布
-3. 发布后等待几分钟让配置生效
-
-### 4.8 配置表格协作者（关键步骤）
-
-**这是最常见的错误原因，请务必正确执行！**
-
-1. 打开您的飞书表格：`https://ai.feishu.cn/sheets/YyQ8smi5vhIiThtOpVZco1HInDg?sheet=5beb2b`
-2. 点击右上角的分享按钮
-3. 在分享设置中，点击「添加协作者」
-4. **关键操作**：在搜索框中输入应用的 `App ID`: `cli_a9acdd01b5f85bde`（**不要用应用名称搜索**）
-5. 找到您的应用并添加为协作者
-6. 设置权限级别为「编辑者」或以上
-7. 点击确认并保存设置
-
-### 4.9 验证配置
-
-运行以下命令验证飞书配置：
-
-```bash
-python main.py --validate-sheet-id
-```
-
-这个工具会帮助您检查：
-- 配置是否完整
-- Token获取是否成功
-- 表格类型是否正确识别
-- Sheet ID是否有效
-- 应用是否有访问权限
-
-### 4.10 常见问题排查
-
-如果遇到404或403错误，请检查：
-
-1. **应用是否已发布**：只有发布后的应用才能正常访问API
-2. **协作者是否正确添加**：确保使用App ID `cli_a9acdd01b5f85bde` 添加，而非名称
-3. **权限是否完整**：确保已添加所有必要的权限
-4. **表格是否可访问**：确认表格未被删除或移动
-5. **等待配置生效**：权限变更后可能需要几分钟时间生效
-
-完成上述配置后，程序将能够自动将数据同步到您的飞书表格。
+1. 登录阿里云控制台
+2. 在右上角头像处，点击 "AccessKey管理"
+3. 点击 "创建AccessKey"
+4. 获取 AccessKey ID 和 AccessKey Secret
 
 ## 进阶玩法建议
 
@@ -239,14 +259,15 @@ python main.py --validate-sheet-id
    - 去掉 `created` 条件，改用 `stars:>500` 搜索高 Star 老项目
    - 添加语言筛选 `language:python`
 2. **增加更多分析维度**：修改 AI 提示词，获取更多项目信息
-3. **数据可视化**：使用工具将历史数据进行可视化分析
+3. **数据可视化**：使用工具将 OSS 中的历史数据进行可视化分析
 4. **多平台同步**：扩展代码支持同时同步到 Notion、钉钉等其他平台
 
 ## 注意事项
 
 - AI 分析结果可能存在误差，特别是对于描述不完整的项目，请人工校对
 - API 调用有频率限制，脚本中已添加 `time.sleep(1)` 避免触发限制
-- 请妥善保管你的 API Key，不要将其直接提交到代码仓库
+- 请妥善保管你的 API Key 和阿里云密钥，不要将其直接提交到代码仓库
+- 阿里云函数计算和 OSS 使用会产生一定费用，请关注账单信息
 
 ## 许可证
 
