@@ -1,0 +1,16 @@
+# 配置文件示例 - 请复制为 config.py 并填写实际值
+
+# GitHub Token
+GITHUB_TOKEN = "您的GitHub Token"
+
+# AI 配置
+AI_API_KEY = "您的AI API密钥"
+AI_BASE_URL = "https://api.openai.com/v1"  # 默认使用OpenAI API
+AI_MODEL = "gpt-3.5-turbo" # 或 gpt-4o-mini / qwen3-max
+
+# OSS 配置
+OSS_ACCESS_KEY_ID = "您的OSS AccessKey ID"
+OSS_ACCESS_KEY_SECRET = "您的OSS AccessKey Secret"
+OSS_ENDPOINT = "oss-cn-hangzhou.aliyuncs.com"  # 例如: oss-cn-hangzhou.aliyuncs.com
+OSS_BUCKET_NAME = "您的OSS Bucket名称"
+OSS_FILE_PATH = "github_trends/"  # 例如: github_trends/

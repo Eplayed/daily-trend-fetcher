@@ -1,4 +1,4 @@
-requests
-pandas
-openai
-oss2
+requests==2.31.0
+pandas==2.2.2
+OpenAI==1.35.11
+oss2==2.16.0

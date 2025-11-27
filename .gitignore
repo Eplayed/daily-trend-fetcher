@@ -62,6 +62,7 @@ pids
 .env
 .env.*
 !.env.example
-
+config.py
+libs/
 # Output data
 *.csv

@@ -1,15 +1,17 @@
-# GitHub 每日热门项目抓取工具
+# GitHub 高星项目抓取工具
 
-这是一个自动化脚本，可以每天抓取 GitHub 上最新热门的项目，并使用 AI 生成中文推荐语和分类信息，最终导出为 CSV 文件并上传到阿里云 OSS。
+这是一个自动化脚本，可以抓取 GitHub 上的高星项目，并使用 AI 进行多标签分类和README内容概括，最终导出为 CSV 文件并上传到阿里云 OSS。
 
 ## 功能特点
 
-- 📊 自动抓取过去 24 小时内 Star 数增长最快的 GitHub 项目
-- 🤖 使用 AI（OpenAI/DeepSeek）分析项目，生成中文推荐语和分类
+- 🌟 自动抓取 GitHub 上高星（stars>5000）项目，按 Star 数量排序
+- 🏷️ 使用 AI（OpenAI/DeepSeek）分析项目，进行多标签分类（如开源框架/库、开发者工具、教育/学习资源等）
+- 📝 将项目 README 内容概括为简洁的 1-2 句中文描述
 - 📁 导出为 CSV 文件，可直接用 Excel 打开
 - ☁️ 自动上传 CSV 文件到阿里云 OSS，便于查看和分享
 - ⚡ 支持部署到阿里云函数计算 FC，实现完全自动化
 - 🔄 通过 GitHub Actions 实现每日定时执行
+- 🔧 测试模式下仅抓取 3 条项目数据，提高开发效率
 
 ## 准备工作
 
@@ -44,6 +46,16 @@ pip install -r requirements.txt
 ## 安全配置指南
 
 **重要提示：** 永远不要将API密钥、密码等敏感信息直接硬编码在代码中或提交到GitHub仓库！本项目提供了以下安全的配置方式：
+
+### 本地调试配置（推荐）
+
+为了方便本地开发和调试，我们提供了通过配置文件设置敏感信息的方式：
+
+1. 将 `config.py.example` 复制并重命名为 `config.py`
+2. 打开 `config.py` 文件，填写您的配置信息
+3. 运行脚本，系统会自动从 `config.py` 读取配置
+
+**注意：** `config.py` 文件已添加到 `.gitignore` 中，不会被提交到代码仓库。
 
 ### 环境变量配置
 
@@ -218,14 +230,26 @@ GitHub Actions 工作流配置已包含在 `.github/workflows/daily.yml` 文件�
 
 生成的 CSV 文件包含以下字段：
 
-- **日期**：数据抓取日期
+- **项目标签**：AI 生成的项目多标签分类（可包含多个预定义标签，如开源框架/库、开发者工具、教育/学习资源、AI、基础设施/DevOps 等）
 - **项目名称**：GitHub 项目名称
-- **Star数**：项目的 Star 数量
-- **分类**：AI 生成的项目分类（工具/AI/框架/资源/其他）
-- **痛点**：项目解决的具体问题
-- **推荐语**：AI 生成的吸睛介绍
-- **链接**：GitHub 项目链接
-- **原始描述**：项目的原始英文描述
+- **项目地址**：GitHub 项目链接
+- **项目README**：项目 README 内容的中文概括（1-2句话）
+
+## 支持的项目标签类别
+
+脚本支持以下预定义标签类别：
+
+- 开源框架/库（Frameworks & Libraries）
+- 开发者工具（Developer Tools）
+- 实用工具/脚本（Utilities/Scripts）
+- 教育/学习资源（Education/Resources）
+- AI
+- 社区/文化项目（Community/Culture）
+- 游戏/图形（Games/Graphics）
+- 科学计算/人工智能（Science/AI）
+- 移动应用/嵌入式（Mobile/Embedded）
+- 企业级应用（Enterprise）
+- 基础设施/DevOps（Infrastructure/DevOps）
 
 ## 阿里云 OSS 配置指南
 
@@ -256,8 +280,9 @@ GitHub Actions 工作流配置已包含在 `.github/workflows/daily.yml` 文件�
 ## 进阶玩法建议
 
 1. **自定义搜索条件**：调整 `get_github_trending` 函数中的搜索参数，例如：
-   - 去掉 `created` 条件，改用 `stars:>500` 搜索高 Star 老项目
+   - 修改 `stars:>5000` 搜索条件来获取不同星数级别的项目
    - 添加语言筛选 `language:python`
+   - 调整 `per_page` 参数来获取更多或更少的项目
 2. **增加更多分析维度**：修改 AI 提示词，获取更多项目信息
 3. **数据可视化**：使用工具将 OSS 中的历史数据进行可视化分析
 4. **多平台同步**：扩展代码支持同时同步到 Notion、钉钉等其他平台
