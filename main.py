@@ -32,6 +32,9 @@ OSS_ACCESS_KEY_SECRET = ""
 OSS_ENDPOINT = ""
 OSS_BUCKET_NAME = ""
 OSS_FILE_PATH = ""
+# GitHub 项目筛选配置默认值
+GITHUB_PROJECT_TAG = "all"
+GITHUB_PROJECT_COUNT = 10
 
 # 尝试从配置文件读取配置
 try:
@@ -55,6 +58,11 @@ try:
         OSS_BUCKET_NAME = config.OSS_BUCKET_NAME
     if hasattr(config, 'OSS_FILE_PATH') and config.OSS_FILE_PATH:
         OSS_FILE_PATH = config.OSS_FILE_PATH
+    # 读取 GitHub 项目筛选配置
+    if hasattr(config, 'GITHUB_PROJECT_TAG') and config.GITHUB_PROJECT_TAG:
+        GITHUB_PROJECT_TAG = config.GITHUB_PROJECT_TAG
+    if hasattr(config, 'GITHUB_PROJECT_COUNT') and isinstance(config.GITHUB_PROJECT_COUNT, int):
+        GITHUB_PROJECT_COUNT = config.GITHUB_PROJECT_COUNT
     logger.info("成功从配置文件读取配置")
 except ImportError:
     logger.info("未找到配置文件，将从环境变量读取配置")
@@ -68,6 +76,12 @@ except ImportError:
     OSS_ENDPOINT = os.environ.get('OSS_ENDPOINT', OSS_ENDPOINT)
     OSS_BUCKET_NAME = os.environ.get('OSS_BUCKET_NAME', OSS_BUCKET_NAME)
     OSS_FILE_PATH = os.environ.get('OSS_FILE_PATH', OSS_FILE_PATH)
+    GITHUB_PROJECT_TAG = os.environ.get('GITHUB_PROJECT_TAG', GITHUB_PROJECT_TAG)
+    # 从环境变量读取整数配置需要转换类型
+    try:
+        GITHUB_PROJECT_COUNT = int(os.environ.get('GITHUB_PROJECT_COUNT', str(GITHUB_PROJECT_COUNT)))
+    except ValueError:
+        logger.warning("环境变量中GITHUB_PROJECT_COUNT格式不正确，使用默认值")
 except Exception as e:
     logger.error(f"读取配置文件时出错: {e}")
     # 出错时从环境变量读取配置
@@ -80,6 +94,11 @@ except Exception as e:
     OSS_ENDPOINT = os.environ.get('OSS_ENDPOINT', "")
     OSS_BUCKET_NAME = os.environ.get('OSS_BUCKET_NAME', "")
     OSS_FILE_PATH = os.environ.get('OSS_FILE_PATH', "")
+    GITHUB_PROJECT_TAG = os.environ.get('GITHUB_PROJECT_TAG', "all")
+    try:
+        GITHUB_PROJECT_COUNT = int(os.environ.get('GITHUB_PROJECT_COUNT', "30"))
+    except ValueError:
+        GITHUB_PROJECT_COUNT = 30
 
 # 调试模式
 DEBUG_MODE = False
@@ -97,12 +116,26 @@ def get_github_trending():
         "Accept": "application/vnd.github.v3+json"
     }
     
-    # 搜索条件：高星项目，按 Star 排序，根据DEBUG_MODE决定获取数量
+    # 搜索条件：高星项目，按 Star 排序
+    # 根据配置的标签和数量筛选项目
+    query = "stars:>5000"
+    
+    # 如果指定了标签，则添加到搜索条件中
+    if GITHUB_PROJECT_TAG and GITHUB_PROJECT_TAG.lower() != "all":
+        query += f" topic:{GITHUB_PROJECT_TAG}"
+        logger.info(f"使用标签筛选项目: {GITHUB_PROJECT_TAG}")
+    else:
+        logger.info("获取全类型项目")
+    
+    # 确定获取数量
+    project_count = 3 if DEBUG_MODE else GITHUB_PROJECT_COUNT
+    logger.info(f"计划获取项目数量: {project_count}")
+    
     params = {
-        "q": "stars:>5000",
+        "q": query,
         "sort": "stars",
         "order": "desc",
-        "per_page": 3 if DEBUG_MODE else 30
+        "per_page": project_count
     }
     
     try:
@@ -440,7 +473,11 @@ def main():
 
         # 保存到 CSV
         df = pd.DataFrame(data_list)
-        filename = f"github_stars_projects_{datetime.now().strftime('%Y%m%d')}.csv"
+        
+        # 按照"类型_年月日"的格式命名CSV文件
+        type_prefix = GITHUB_PROJECT_TAG.lower() if GITHUB_PROJECT_TAG and GITHUB_PROJECT_TAG.lower() != "all" else "all"
+        filename = f"{type_prefix}_projects_{datetime.now().strftime('%Y%m%d')}.csv"
+        
         df.to_csv(filename, index=False, encoding='utf_8_sig')
         logger.info(f"✅ 完成！数据已保存为 {filename}")
         
