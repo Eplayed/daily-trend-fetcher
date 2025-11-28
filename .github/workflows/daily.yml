@@ -8,6 +8,28 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    # 设置作业超时时间为1小时
+    timeout-minutes: 60
+    # 使用矩阵策略为每个标签类别创建一个单独的作业
+    strategy:
+      matrix:
+        tag: [
+          "all",
+          "machine-learning",
+          "artificial-intelligence",
+          "web-development",
+          "frontend",
+          "backend",
+          "python",
+          "javascript",
+          "docker",
+          "kubernetes",
+          "devops",
+          "mobile-development",
+          "data-science"
+        ]
+      # 即使其中一个标签类别执行失败，也继续执行其他类别
+      fail-fast: false
     steps:
       - uses: actions/checkout@v4
       
@@ -21,7 +43,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           
-      - name: Run script
+      - name: Run script for tag ${{ matrix.tag }}
         env:
           # 在 GitHub 仓库 Settings -> Secrets 里配置这些变量
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
@@ -43,5 +65,5 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-            name: github-trending-data
+            name: github-trending-data-${{ matrix.tag }}
             path: "*_projects_*.csv"

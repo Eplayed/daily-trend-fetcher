@@ -38,6 +38,37 @@ PROJECT_COUNT = 10
 # 是否在GitHub Actions中尝试实际OSS上传
 GITHUB_ACTIONS_UPLOAD_OSS = False
 
+# 添加标签映射字典 - 将友好标签映射到GitHub实际topic
+TAG_MAPPING = {
+    # 常用友好标签到GitHub实际topic的映射
+    'ai': ['artificial-intelligence', 'machine-learning'],
+    'ml': ['machine-learning'],
+    'web': ['web-development', 'frontend', 'backend'],
+    'frontend': ['frontend', 'web-development', 'javascript', 'react', 'vue', 'angular'],
+    'backend': ['backend', 'server', 'api'],
+    'devops': ['devops', 'docker', 'kubernetes', 'ci-cd'],
+    'mobile': ['mobile-development', 'android', 'ios', 'flutter', 'react-native'],
+    'data': ['data-science', 'data-analysis', 'big-data'],
+    'python': ['python'],
+    'java': ['java'],
+    'javascript': ['javascript'],
+    'go': ['go', 'golang'],
+    'rust': ['rust'],
+    'c': ['c', 'c-language'],
+    'cpp': ['cpp', 'c-plus-plus'],
+    'dotnet': ['.net', 'dotnet', 'csharp']
+}
+
+# 有效的GitHub实际topic标签列表
+VALID_GITHUB_TOPICS = [
+    'machine-learning', 'artificial-intelligence', 'web-development',
+    'frontend', 'backend', 'python', 'javascript', 'docker',
+    'kubernetes', 'devops', 'mobile-development', 'data-science',
+    'android', 'ios', 'react', 'vue', 'angular', 'flutter',
+    'react-native', 'server', 'api', 'ci-cd', 'data-analysis',
+    'big-data', 'java', 'go', 'golang', 'rust', 'c', 'c-language',
+    'cpp', 'c-plus-plus', '.net', 'dotnet', 'csharp'
+]
 # 尝试从配置文件读取配置
 try:
     import config
@@ -114,6 +145,26 @@ except Exception as e:
 # 调试模式
 DEBUG_MODE = True
 
+def validate_and_map_tag(tag):
+    """验证标签有效性并进行映射转换"""
+    if not tag or tag.lower() == "all":
+        return None, "all"
+        
+    tag_lower = tag.lower()
+    
+    # 检查是否为有效的GitHub实际topic
+    if tag_lower in VALID_GITHUB_TOPICS:
+        return [tag_lower], tag_lower
+        
+    # 检查是否存在标签映射
+    if tag_lower in TAG_MAPPING:
+        return TAG_MAPPING[tag_lower], tag_lower
+        
+    # 如果是自定义标签但不在有效列表中，发出警告
+    logger.warning(f"警告: '{tag}' 可能不是GitHub上有效的topic标签")
+    logger.warning(f"建议使用以下有效标签之一: {', '.join(VALID_GITHUB_TOPICS)}")
+    return [tag_lower], tag_lower
+
 # ===========================================
 def get_github_trending():
     """获取GitHub上的高星项目"""
@@ -131,10 +182,17 @@ def get_github_trending():
     # 根据配置的标签和数量筛选项目
     query = "stars:>5000"
     
+    mapped_topics, used_tag = validate_and_map_tag(PROJECT_TAG)
     # 如果指定了标签，则添加到搜索条件中
-    if PROJECT_TAG and PROJECT_TAG.lower() != "all":
-        query += f" topic:{PROJECT_TAG}"
-        logger.info(f"使用标签筛选项目: {PROJECT_TAG}")
+    if used_tag and used_tag.lower() != "all":
+        if len(mapped_topics) > 1:
+            # 如果有多个标签映射，使用OR逻辑组合
+            topic_conditions = " ".join([f"topic:{topic}" for topic in mapped_topics])
+            query += f" (" + topic_conditions + ")"
+            logger.info(f"使用多标签筛选项目: {', '.join(mapped_topics)}")
+        else:
+            query += f" topic:{mapped_topics[0]}"
+            logger.info(f"使用标签筛选项目: {mapped_topics[0]}")
     else:
         logger.info("获取全类型项目")
     
