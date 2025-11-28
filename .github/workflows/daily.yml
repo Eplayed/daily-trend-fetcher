@@ -55,7 +55,7 @@ jobs:
           OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
           OSS_BUCKET_NAME: ${{ secrets.OSS_BUCKET_NAME }}
           OSS_FILE_PATH: ${{ secrets.OSS_FILE_PATH }}
-          PROJECT_TAG: ${{ secrets.PROJECT_TAG }}
+          PROJECT_TAG: ${{ matrix.tag }}
           PROJECT_COUNT: ${{ secrets.PROJECT_COUNT }}
           # 控制是否在GitHub Actions中尝试实际OSS上传
           GITHUB_ACTIONS_UPLOAD_OSS: ${{ secrets.GITHUB_ACTIONS_UPLOAD_OSS || 'true' }}
