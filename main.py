@@ -36,7 +36,7 @@ OSS_FILE_PATH = ""
 PROJECT_TAG = "all"
 PROJECT_COUNT = 10
 # 是否在GitHub Actions中尝试实际OSS上传
-GITHUB_ACTIONS_UPLOAD_OSS = True
+GITHUB_ACTIONS_UPLOAD_OSS = False
 
 # 尝试从配置文件读取配置
 try:
@@ -112,7 +112,7 @@ except Exception as e:
     GITHUB_ACTIONS_UPLOAD_OSS = github_actions_upload_oss_env in ('true', '1', 'yes')
 
 # 调试模式
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 # ===========================================
 def get_github_trending():
@@ -339,6 +339,14 @@ def check_environment():
     return is_sandbox
 
 
+# 导入upload_csv_to_oss模块中的OSS上传功能
+try:
+    from upload_csv_to_oss import upload_to_oss as oss_module_upload
+    logger.info("成功导入upload_csv_to_oss模块")
+except ImportError:
+    logger.warning("无法导入upload_csv_to_oss模块，将使用内部上传实现")
+    oss_module_upload = None
+
 def upload_to_oss(filename):
     """将文件上传到OSS，失败时提供替代方案"""
     try:
@@ -357,12 +365,35 @@ def upload_to_oss(filename):
         if github_env and not GITHUB_ACTIONS_UPLOAD_OSS:
             logger.info("GITHUB_ACTIONS_UPLOAD_OSS设置为False，在GitHub Actions环境中使用替代上传方案")
             return provide_alternative_upload(filename)
-        elif github_env:
-            logger.info("在GitHub Actions环境中尝试实际OSS上传")
         
+        # 优先使用upload_csv_to_oss模块的上传功能
+        if oss_module_upload:
+            logger.info("使用upload_csv_to_oss模块的上传功能")
+            # 构建完整的OSS文件路径
+            oss_directory = OSS_FILE_PATH.rstrip('/') + '/' if OSS_FILE_PATH else ''
+            full_oss_file_path = oss_directory + os.path.basename(filename)
+            
+            success = oss_module_upload(
+                filename=filename,
+                access_key_id=OSS_ACCESS_KEY_ID,
+                access_key_secret=OSS_ACCESS_KEY_SECRET,
+                endpoint=OSS_ENDPOINT,
+                bucket_name=OSS_BUCKET_NAME,
+                oss_file_path=full_oss_file_path
+            )
+            
+            # 如果上传失败并且不在GitHub Actions环境中，尝试替代上传方案
+            if not success and not github_env:
+                logger.info("尝试使用替代方案保存文件")
+                return provide_alternative_upload(filename)
+            
+            return success
+        
+        # 如果无法导入upload_csv_to_oss模块，则使用备用上传实现
+        logger.info("使用备用上传实现")
         # 设置重试次数和间隔
-        max_retries = 3  # 增加重试次数
-        retry_interval = 3  # 秒
+        max_retries = 3
+        retry_interval = 3
         
         for attempt in range(max_retries):
             try:
@@ -372,17 +403,13 @@ def upload_to_oss(filename):
                 # 创建OSS认证对象
                 auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
                 
-                # 配置OSS连接参数，优化网络连接
-                oss_options = {
-                    'connect_timeout': 120,  # 增加连接超时时间
-                }
                 # 创建OSS Bucket对象
-                bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME, **oss_options)
+                bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME)
                 
                 # 构建OSS文件路径
                 oss_file_path = OSS_FILE_PATH.rstrip('/') + '/' + filename
                 
-                # 上传文件，使用更稳定的上传方法
+                # 上传文件
                 result = bucket.put_object_from_file(oss_file_path, filename, progress_callback=None)
                 
                 # 验证上传结果
