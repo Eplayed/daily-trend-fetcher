@@ -1,4 +1,4 @@
-# GitHub 高星项目抓取工具
+# GitHub 热门项目自动化抓取与分析工具
 
 这是一个自动化脚本，可以抓取 GitHub 上的高星项目，并使用 AI 进行多标签分类和README内容概括，最终导出为 CSV 文件并上传到阿里云 OSS。
 
@@ -10,7 +10,8 @@
 - 📁 导出为 CSV 文件，可直接用 Excel 打开
 - ☁️ 自动上传 CSV 文件到阿里云 OSS，便于查看和分享
 - ⚡ 支持部署到阿里云函数计算 FC 或 GitHub Actions，实现完全自动化
-- 🔧 支持按标签筛选项目和自定义获取数量
+- 🔧 支持多标签并行抓取和自定义获取数量
+- 🔍 支持标签映射和验证，确保GitHub搜索标签准确性
 
 ## 准备工作
 
@@ -107,14 +108,15 @@ python main.py
 
 1. 创建 GitHub 仓库并上传所有文件
 2. 在仓库的 `Settings` -> `Secrets and variables` -> `Actions` 页面，添加所有必要的密钥（与环境变量同名）
-3. GitHub Actions 会在每天 UTC 时间 0:00（北京时间早上 8 点）自动运行（配置在 `.github/workflows/daily.yml`）
+3. GitHub Actions 会在每5天 UTC 时间 0:00（北京时间早上 8 点）自动运行（配置在 `.github/workflows/daily.yml`）
+4. 系统会并行处理多个标签类别，每个标签生成独立的CSV文件并上传到OSS
 
 ### 方式2：阿里云函数计算 FC
 
 1. 登录阿里云函数计算控制台，创建函数（自定义运行时，Python 3.9）
 2. 将 main.py 和 requirements.txt 文件打包成 zip 格式并上传
 3. 配置环境变量（与本地环境变量相同）
-4. 创建定时触发器，设置 Cron 表达式（例如：0 8 * * * 每天北京时间8点触发）
+4. 创建定时触发器，设置 Cron 表达式（例如：0 8 */5 * * 每5天北京时间8点触发）
 
 ## 数据说明
 
@@ -140,6 +142,26 @@ python main.py
 - 移动应用/嵌入式（Mobile/Embedded）
 - 企业级应用（Enterprise）
 - 基础设施/DevOps（Infrastructure/DevOps）
+- 机器学习（machine-learning）
+- 人工智能（artificial-intelligence）
+- Web开发（web-development）
+- 前端开发（frontend）
+- 后端开发（backend）
+- Python
+- JavaScript
+- Docker
+- Kubernetes
+- DevOps
+- 移动开发（mobile-development）
+- 数据科学（data-science）
+
+## 工作流程
+
+1. **获取热门项目**：通过GitHub API获取指定标签下的高星项目
+2. **AI分析处理**：使用AI对每个项目进行标签分类和README概括
+3. **数据保存**：将处理后的数据保存为CSV文件
+4. **OSS上传**：自动将CSV文件上传到阿里云OSS
+5. **状态报告**：输出执行结果和上传状态
 
 ## 注意事项
 
@@ -147,6 +169,7 @@ python main.py
 - API 调用有频率限制，脚本中已添加延迟避免触发限制
 - 请妥善保管你的 API Key 和阿里云密钥
 - 阿里云函数计算和 OSS 使用会产生一定费用，请关注账单信息
+- 在GitHub Actions中，每个标签类别会生成独立的文件，命名格式为"{标签}_projects_{日期}.csv"
 
 ## 许可证
 

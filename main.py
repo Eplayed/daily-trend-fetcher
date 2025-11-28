@@ -143,7 +143,7 @@ except Exception as e:
     GITHUB_ACTIONS_UPLOAD_OSS = github_actions_upload_oss_env in ('true', '1', 'yes')
 
 # 调试模式
-DEBUG_MODE = True
+DEBUG_MODE = False
 
 def validate_and_map_tag(tag):
     """验证标签有效性并进行映射转换"""
