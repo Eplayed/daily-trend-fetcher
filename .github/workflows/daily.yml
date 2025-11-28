@@ -9,10 +9,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
           
@@ -23,7 +23,7 @@ jobs:
       - name: Run script
         env:
           # 在 GitHub 仓库 Settings -> Secrets 里配置这些变量
-          GITHUB_TOKEN: ${{ secrets.MY_GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
           AI_API_KEY: ${{ secrets.AI_API_KEY }}
           AI_BASE_URL: ${{ secrets.AI_BASE_URL }}
           AI_MODEL: ${{ secrets.AI_MODEL }}
@@ -32,10 +32,12 @@ jobs:
           OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
           OSS_BUCKET_NAME: ${{ secrets.OSS_BUCKET_NAME }}
           OSS_FILE_PATH: ${{ secrets.OSS_FILE_PATH }}
+          PROJECT_TAG: ${{ secrets.PROJECT_TAG }}
+          PROJECT_COUNT: ${{ secrets.PROJECT_COUNT }}
         run: python main.py
         
       - name: Upload result
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v4
         with:
           name: daily-report
           path: ./*.csv
