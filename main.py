@@ -379,7 +379,7 @@ def upload_to_oss(filename):
                     'socket_timeout': 300,   # 增加套接字超时时间
                     'max_retries': 3         # OSS SDK内部重试次数
                 }
-                
+                print('oss2',oss2.Bucket)
                 # 创建OSS Bucket对象
                 bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME, **oss_options)
                 
