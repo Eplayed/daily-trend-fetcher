@@ -38,7 +38,7 @@ pip install -r requirements.txt
 
 ```python
 # GitHub Token
-GITHUB_TOKEN = "ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+GH_TOKEN = "ghp_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
 
 # AI 配置
 AI_API_KEY = "sk-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
@@ -53,8 +53,8 @@ OSS_BUCKET_NAME = "your-bucket-name"
 OSS_FILE_PATH = "github_trends/"  # 存储路径
 
 # GitHub 项目筛选配置
-GITHUB_PROJECT_TAG = "all"  # 可选值："all"（全类型）或特定标签名称（如 "ai", "web" 等）
-GITHUB_PROJECT_COUNT = 10  # 项目获取数量
+PROJECT_TAG = "all"  # 可选值："all"（全类型）或特定标签名称（如 "ai", "web" 等）
+PROJECT_COUNT = 10  # 项目获取数量
 ```
 
 ### 方式2：环境变量
@@ -63,7 +63,7 @@ GITHUB_PROJECT_COUNT = 10  # 项目获取数量
 
 **Windows:**
 ```cmd
-set GITHUB_TOKEN="您的GitHub Token"
+set GH_TOKEN="您的GitHub Token"
 set AI_API_KEY="您的AI API密钥"
 set AI_BASE_URL="https://api.openai.com/v1"
 set AI_MODEL="gpt-3.5-turbo"
@@ -72,13 +72,13 @@ set OSS_ACCESS_KEY_SECRET="您的OSS AccessKey Secret"
 set OSS_ENDPOINT="oss-cn-hangzhou.aliyuncs.com"
 set OSS_BUCKET_NAME="您的OSS Bucket名称"
 set OSS_FILE_PATH="github_trends/"
-set GITHUB_PROJECT_TAG="all"
-set GITHUB_PROJECT_COUNT="30"
+set PROJECT_TAG="all"
+set PROJECT_COUNT="30"
 ```
 
 **macOS/Linux:**
 ```bash
-export GITHUB_TOKEN="您的GitHub Token"
+export GH_TOKEN="您的GitHub Token"
 export AI_API_KEY="您的AI API密钥"
 export AI_BASE_URL="https://api.openai.com/v1"
 export AI_MODEL="gpt-3.5-turbo"
@@ -87,8 +87,8 @@ export OSS_ACCESS_KEY_SECRET="您的OSS AccessKey Secret"
 export OSS_ENDPOINT="oss-cn-hangzhou.aliyuncs.com"
 export OSS_BUCKET_NAME="您的OSS Bucket名称"
 export OSS_FILE_PATH="github_trends/"
-export GITHUB_PROJECT_TAG="all"
-export GITHUB_PROJECT_COUNT="30"
+export PROJECT_TAG="all"
+export PROJECT_COUNT="30"
 ```
 
 ## 本地运行
