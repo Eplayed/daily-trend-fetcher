@@ -35,6 +35,8 @@ OSS_FILE_PATH = ""
 # GitHub 项目筛选配置默认值
 PROJECT_TAG = "all"
 PROJECT_COUNT = 10
+# 是否在GitHub Actions中尝试实际OSS上传
+GITHUB_ACTIONS_UPLOAD_OSS = True
 
 # 尝试从配置文件读取配置
 try:
@@ -63,6 +65,9 @@ try:
         PROJECT_TAG = config.PROJECT_TAG
     if hasattr(config, 'PROJECT_COUNT') and isinstance(config.PROJECT_COUNT, int):
         PROJECT_COUNT = config.PROJECT_COUNT
+    # 读取GitHub Actions上传控制配置
+    if hasattr(config, 'GITHUB_ACTIONS_UPLOAD_OSS'):
+        GITHUB_ACTIONS_UPLOAD_OSS = bool(config.GITHUB_ACTIONS_UPLOAD_OSS)
     logger.info("成功从配置文件读取配置")
 except ImportError:
     logger.info("未找到配置文件，将从环境变量读取配置")
@@ -82,6 +87,9 @@ except ImportError:
         PROJECT_COUNT = int(os.environ.get('PROJECT_COUNT', str(PROJECT_COUNT)))
     except ValueError:
         logger.warning("环境变量中PROJECT_COUNT格式不正确，使用默认值")
+    # 从环境变量读取布尔配置
+    github_actions_upload_oss_env = os.environ.get('GITHUB_ACTIONS_UPLOAD_OSS', str(GITHUB_ACTIONS_UPLOAD_OSS)).lower()
+    GITHUB_ACTIONS_UPLOAD_OSS = github_actions_upload_oss_env in ('true', '1', 'yes')
 except Exception as e:
     logger.error(f"读取配置文件时出错: {e}")
     # 出错时从环境变量读取配置
@@ -99,6 +107,9 @@ except Exception as e:
         PROJECT_COUNT = int(os.environ.get('PROJECT_COUNT', "30"))
     except ValueError:
         PROJECT_COUNT = 10
+    # 从环境变量读取布尔配置
+    github_actions_upload_oss_env = os.environ.get('GITHUB_ACTIONS_UPLOAD_OSS', 'true').lower()
+    GITHUB_ACTIONS_UPLOAD_OSS = github_actions_upload_oss_env in ('true', '1', 'yes')
 
 # 调试模式
 DEBUG_MODE = False
@@ -268,7 +279,7 @@ def analyze_with_ai(repo):
         企业级应用（Enterprise）
         基础设施/DevOps（Infrastructure/DevOps）
         
-        请严格按照以下格式返回（不要多余废话）：
+        请严格执行以下格式返回（不要多余废话）：
         标签: [标签1, 标签2, ...]  # 使用英文逗号分隔，保留中文标签名称
         README概括: [将README内容概括为1-2句话，用中文表达]
         """
@@ -315,11 +326,15 @@ def check_environment():
     # 检测 GitHub Actions 环境
     if os.environ.get('GITHUB_ACTIONS') == 'true':
         is_sandbox = True
-        logger.info("在 GitHub Actions 环境中运行，可能存在网络限制")
+        logger.info("在 GitHub Actions 环境中运行，将尝试实际OSS上传")
     
     if is_sandbox:
-        logger.warning("⚠️ 程序可能在受限环境中运行，OSS上传可能会受到限制")
-        logger.warning("文件将保存在本地oss_upload_simulator目录作为替代方案")
+        if os.environ.get('GITHUB_ACTIONS') == 'true':
+            logger.warning("⚠️ 在GitHub Actions环境中，可能存在网络限制")
+            logger.warning("系统将尝试实际OSS上传，并在失败时提供替代方案")
+        else:
+            logger.warning("⚠️ 程序可能在受限环境中运行，OSS上传可能会受到限制")
+            logger.warning("文件将保存在本地oss_upload_simulator目录作为替代方案")
     
     return is_sandbox
 
@@ -335,63 +350,95 @@ def upload_to_oss(filename):
         # 检查运行环境
         is_sandbox = check_environment()
         
-        # 在 GitHub Actions 环境中，直接使用替代上传方案
-        if os.environ.get('GITHUB_ACTIONS') == 'true':
-            logger.info("检测到 GitHub Actions 环境，为了避免网络问题，直接使用替代上传方案")
-            return provide_alternative_upload(filename)
+        # 增加环境标记，方便调试
+        github_env = os.environ.get('GITHUB_ACTIONS') == 'true'
         
-        # 设置重试次数
-        max_retries = 3
-        retry_interval = 5  # 增加重试间隔到5秒
+        # 在GitHub Actions环境中，根据配置决定是否尝试实际上传
+        if github_env and not GITHUB_ACTIONS_UPLOAD_OSS:
+            logger.info("GITHUB_ACTIONS_UPLOAD_OSS设置为False，在GitHub Actions环境中使用替代上传方案")
+            return provide_alternative_upload(filename)
+        elif github_env:
+            logger.info("在GitHub Actions环境中尝试实际OSS上传")
+        
+        # 设置重试次数和间隔
+        max_retries = 3  # 增加重试次数
+        retry_interval = 3  # 秒
         
         for attempt in range(max_retries):
             try:
-                logger.info(f"正在上传文件 {filename} 到OSS (尝试 {attempt+1}/{max_retries})...")
+                env_label = "[GitHub Actions] " if github_env else ""
+                logger.info(f"{env_label}正在上传文件 {filename} 到OSS (尝试 {attempt+1}/{max_retries})...")
                 
                 # 创建OSS认证对象
                 auth = oss2.Auth(OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET)
                 
-                # 创建OSS Bucket对象，增加连接超时设置
-                bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME, connect_timeout=120)
+                # 配置OSS连接参数，优化网络连接
+                oss_options = {
+                    'connect_timeout': 120,  # 增加连接超时时间
+                    'read_timeout': 300,     # 增加读取超时时间
+                    'socket_timeout': 300,   # 增加套接字超时时间
+                    'max_retries': 3         # OSS SDK内部重试次数
+                }
+                
+                # 创建OSS Bucket对象
+                bucket = oss2.Bucket(auth, OSS_ENDPOINT, OSS_BUCKET_NAME, **oss_options)
                 
                 # 构建OSS文件路径
                 oss_file_path = OSS_FILE_PATH.rstrip('/') + '/' + filename
                 
-                # 上传文件，增加超时设置
+                # 上传文件，使用更稳定的上传方法
                 result = bucket.put_object_from_file(oss_file_path, filename, progress_callback=None)
                 
                 # 验证上传结果
                 if result.status == 200:
-                    logger.info(f"✅ 文件 {filename} 已成功上传到OSS，路径: {oss_file_path}")
+                    logger.info(f"✅ {env_label}文件 {filename} 已成功上传到OSS，路径: {oss_file_path}")
                     return True
                 else:
-                    logger.error(f"上传返回非成功状态码: {result.status}")
+                    logger.error(f"{env_label}上传返回非成功状态码: {result.status}")
                     if attempt < max_retries - 1:
                         logger.info(f"{retry_interval}秒后重试...")
                         time.sleep(retry_interval)
                     else:
                         logger.error("已达到最大重试次数")
-                        return provide_alternative_upload(filename)
+                        # 只有在完全失败时才使用替代方案
+                        logger.info("尝试使用替代方案保存文件")
+                        provide_alternative_upload(filename)
+                        return False
             except oss2.exceptions.ServerError as e:
-                error_msg = f"OSS服务器错误 - 状态码: {e.status}, 请求ID: {getattr(e, 'request_id', 'N/A')}, 错误信息: {getattr(e, 'details', 'N/A')}"
+                error_msg = f"{env_label}OSS服务器错误 - 状态码: {e.status}, 请求ID: {getattr(e, 'request_id', 'N/A')}, 错误信息: {getattr(e, 'details', 'N/A')}"
                 logger.error(error_msg)
                 
+                # 针对常见错误的特殊处理
+                if e.status == 403:
+                    logger.error("⚠️ 权限错误，请检查OSS密钥和Bucket权限配置")
+                elif e.status == 404:
+                    logger.error("⚠️ Bucket不存在，请检查OSS_ENDPOINT和OSS_BUCKET_NAME配置")
+                elif e.status == 502 or e.status == 503 or e.status == 504:
+                    logger.error("⚠️ 网络超时或服务不可用，可能是GitHub Actions环境的网络限制")
+                    
                 if attempt < max_retries - 1:
                     logger.info(f"{retry_interval}秒后重试...")
                     time.sleep(retry_interval)
                 else:
-                    return provide_alternative_upload(filename)
+                    logger.info("尝试使用替代方案保存文件")
+                    provide_alternative_upload(filename)
+                    return False
             except Exception as e:
-                logger.error(f"上传文件到OSS失败: {e}")
+                logger.error(f"{env_label}上传文件到OSS失败: {e}")
+                import traceback
+                traceback.print_exc()
                 
                 if attempt < max_retries - 1:
                     logger.info(f"{retry_interval}秒后重试...")
                     time.sleep(retry_interval)
                 else:
-                    return provide_alternative_upload(filename)
+                    logger.info("尝试使用替代方案保存文件")
+                    provide_alternative_upload(filename)
+                    return False
     except Exception as e:
         logger.error(f"处理OSS上传时发生未预期错误: {e}")
-        return provide_alternative_upload(filename)
+        provide_alternative_upload(filename)
+        return False
 
 def provide_alternative_upload(filename):
     """提供替代的上传方案"""
