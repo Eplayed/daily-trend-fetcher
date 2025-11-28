@@ -5,6 +5,13 @@ import logging
 import time
 from datetime import datetime
 
+OSS_ACCESS_KEY_ID = ""
+OSS_ACCESS_KEY_SECRET = ""
+OSS_ENDPOINT = ""
+OSS_BUCKET_NAME = ""
+OSS_FILE_PATH = ""
+PROJECT_TAG = "all"
+
 # 配置日志
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
