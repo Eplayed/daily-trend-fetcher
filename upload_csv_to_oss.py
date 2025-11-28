@@ -22,14 +22,18 @@ class OSSUploader:
             self.OSS_FILE_PATH = getattr(config, 'OSS_FILE_PATH', '')
             self.PROJECT_TAG = getattr(config, 'PROJECT_TAG', '')
             logger.info("成功从配置文件读取OSS配置")
-        except Exception as e:
+        except ImportError:
+            logger.info("未找到配置文件，将从环境变量读取配置")
             self.OSS_ACCESS_KEY_ID = os.environ.get('OSS_ACCESS_KEY_ID', OSS_ACCESS_KEY_ID)
             self.OSS_ACCESS_KEY_SECRET = os.environ.get('OSS_ACCESS_KEY_SECRET', OSS_ACCESS_KEY_SECRET)
             self.OSS_ENDPOINT = os.environ.get('OSS_ENDPOINT', OSS_ENDPOINT)
             self.OSS_BUCKET_NAME = os.environ.get('OSS_BUCKET_NAME', OSS_BUCKET_NAME)
             self.OSS_FILE_PATH = os.environ.get('OSS_FILE_PATH', OSS_FILE_PATH)
             self.PROJECT_TAG = os.environ.get('PROJECT_TAG', PROJECT_TAG)
-            logger.error(f"读取配置系统环境变量: {e}")
+        except Exception as e:
+            logger.error(f"读取配置文件失败: {e}")
+            logger.info("请确保正确的OSS配置")
+            sys.exit(1)
         
         # 检查配置是否完整
         self._check_config()
