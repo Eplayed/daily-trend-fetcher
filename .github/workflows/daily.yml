@@ -1,4 +1,4 @@
-name: Daily GitHub Trending
+name: Daily Fetch
 on:
   schedule:
     # 每天北京时间早上 8 点运行 (UTC 0:00)
@@ -6,7 +6,7 @@ on:
   workflow_dispatch: # 允许手动点按钮运行
 
 jobs:
-  fetch-trending::
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
