@@ -66,3 +66,4 @@ config.py
 libs/
 # Output data
 *.csv
+*.json

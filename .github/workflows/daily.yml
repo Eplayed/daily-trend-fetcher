@@ -66,4 +66,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
             name: github-trending-data-${{ matrix.tag }}
-            path: "*_projects_*.csv"
+            path: "*_projects_*.json"

@@ -1,5 +1,5 @@
-import os
 import sys
+import os
 import oss2
 import logging
 import time
@@ -59,27 +59,46 @@ class OSSUploader:
             logger.error(f"OSS配置不完整，缺少: {', '.join(missing_configs)}")
             sys.exit(1)
     
-    def get_csv_file(self):
-        """查找要上传的CSV文件"""
-        # 尝试获取今天的CSV文件
+    def get_data_file(self):
+        """查找要上传的数据文件（优先JSON，后CSV）"""
+        # 尝试获取今天的JSON文件
         today = datetime.now().strftime('%Y%m%d')
-        csv_filename = f"{self.PROJECT_TAG.lower()}_projects_{today}.csv"
+        json_filename = f"{self.PROJECT_TAG.lower()}_projects_{today}.json"
         
+        if os.path.exists(json_filename):
+            logger.info(f"找到今天的JSON文件: {json_filename}")
+            return json_filename
+        
+        # 如果今天的JSON文件不存在，尝试CSV文件
+        csv_filename = f"{self.PROJECT_TAG.lower()}_projects_{today}.csv"
         if os.path.exists(csv_filename):
             logger.info(f"找到今天的CSV文件: {csv_filename}")
             return csv_filename
         
-        # 如果今天的文件不存在，查找最新的CSV文件
+        # 如果今天的文件不存在，查找最新的JSON文件
+        json_files = [f for f in os.listdir('.') if f.startswith('github_stars_projects_') and f.endswith('.json')]
+        if json_files:
+            # 按文件名排序，最新的文件在最后
+            json_files.sort()
+            latest_json = json_files[-1]
+            logger.info(f"未找到今天的数据文件，使用最新的JSON文件: {latest_json}")
+            return latest_json
+        
+        # 最后尝试查找最新的CSV文件（向后兼容）
         csv_files = [f for f in os.listdir('.') if f.startswith('github_stars_projects_') and f.endswith('.csv')]
         if csv_files:
             # 按文件名排序，最新的文件在最后
             csv_files.sort()
             latest_csv = csv_files[-1]
-            logger.info(f"未找到今天的CSV文件，使用最新的CSV文件: {latest_csv}")
+            logger.info(f"未找到JSON文件，使用最新的CSV文件: {latest_csv}")
             return latest_csv
         
-        logger.error("未找到任何CSV文件")
+        logger.error("未找到任何数据文件")
         return None
+    
+    def get_csv_file(self):
+        """查找要上传的CSV文件（向后兼容）"""
+        return self.get_data_file()
     
     def upload_file_to_oss(self, file_path, oss_file_path=None):
         """上传文件到OSS，增加重试逻辑"""
@@ -178,11 +197,11 @@ class OSSUploader:
         
         return False
     
-    def upload_csv(self, filename=None):
-        """上传CSV文件到OSS，如未指定文件名则自动查找"""
+    def upload_data(self, filename=None):
+        """上传数据文件到OSS，如未指定文件名则自动查找"""
         # 如果未指定文件名，自动查找
         if not filename:
-            filename = self.get_csv_file()
+            filename = self.get_data_file()
             if not filename:
                 return False
         
@@ -209,8 +228,8 @@ def upload_to_oss(filename=None, access_key_id=None, access_key_secret=None, end
         uploader.OSS_FILE_PATH = os.path.dirname(oss_file_path)
         return uploader.upload_file_to_oss(filename, oss_file_path)
     
-    # 调用上传CSV方法
-    return uploader.upload_csv(filename)
+    # 调用上传数据方法
+    return uploader.upload_data(filename)
 
 def main():
     """主函数，用于直接运行脚本"""
@@ -219,16 +238,16 @@ def main():
     # 创建OSSUploader实例
     oss_uploader = OSSUploader()
     
-    # 查找今天的CSV文件
-    csv_file = oss_uploader.get_csv_file()
-    if not csv_file:
-        logger.error("未找到今天的CSV文件")
+    # 查找今天的数据文件
+    data_file = oss_uploader.get_data_file()
+    if not data_file:
+        logger.error("未找到今天的数据文件")
         return
     
-    logger.info(f"找到今天的CSV文件: {csv_file}")
+    logger.info(f"找到今天的数据文件: {data_file}")
     
     # 上传文件
-    success = oss_uploader.upload_file_to_oss(csv_file)
+    success = oss_uploader.upload_file_to_oss(data_file)
     
     logger.info("\n===== 上传结果 ======")
     if success:

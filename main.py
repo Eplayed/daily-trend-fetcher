@@ -1,16 +1,17 @@
-import sys
+# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import os
+import sys
+import time
+import logging
+import json
 
 # 添加当前目录下的libs文件夹到Python模块搜索路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'libs'))
 
 import requests
-import pandas as pd
 from datetime import datetime, timedelta
 from openai import OpenAI
-import time
-import logging
-import json
 import oss2
 
 # 配置日志
@@ -143,7 +144,7 @@ except Exception as e:
     GITHUB_ACTIONS_UPLOAD_OSS = github_actions_upload_oss_env in ('true', '1', 'yes')
 
 # 调试模式
-DEBUG_MODE = False
+DEBUG_MODE = True
 
 def validate_and_map_tag(tag):
     """验证标签有效性并进行映射转换"""
@@ -172,11 +173,17 @@ def get_github_trending():
     
     url = "https://api.github.com/search/repositories"
     
-    # 确保 headers 是ASCII编码
+    # 构建请求头
     headers = {
-        "Authorization": f"token {GH_TOKEN}",
         "Accept": "application/vnd.github.v3+json"
     }
+    
+    # 如果提供了GitHub Token，则添加到请求头中
+    if GH_TOKEN:
+        headers["Authorization"] = f"token {GH_TOKEN}"
+        logger.info("已使用GitHub Token进行认证，将获得更高的API调用限额")
+    else:
+        logger.warning("未提供GitHub Token，将使用未认证请求，可能会受到API调用频率限制")
     
     # 搜索条件：高星项目，按 Star 排序
     # 根据配置的标签和数量筛选项目
@@ -226,15 +233,20 @@ def get_github_trending():
             # 获取README
             readme_url = f"https://raw.githubusercontent.com/{repo['full_name']}/master/README.md"
             try:
-                readme_response = session.get(readme_url)
+                # 使用相同的认证头获取README
+                readme_response = session.get(readme_url, headers=encoded_headers)
                 if readme_response.status_code == 200:
                     repo['readme'] = readme_response.text
                 else:
                     # 尝试其他分支
                     readme_url = f"https://raw.githubusercontent.com/{repo['full_name']}/main/README.md"
-                    readme_response = session.get(readme_url)
+                    readme_response = session.get(readme_url, headers=encoded_headers)
                     if readme_response.status_code == 200:
                         repo['readme'] = readme_response.text
+                    elif readme_response.status_code == 403 and not GH_TOKEN:
+                        # 如果是未认证导致的访问限制，记录警告
+                        logger.warning(f"获取README时达到API限制，建议提供GitHub Token以增加访问配额")
+                        repo['readme'] = "README访问受限"
                     else:
                         repo['readme'] = "README not available"
             except Exception as e:
@@ -244,11 +256,17 @@ def get_github_trending():
             # 获取完整标签列表
             try:
                 tags_url = f"https://api.github.com/repos/{repo['full_name']}/tags"
+                # 使用相同的认证头获取标签信息
                 tags_response = session.get(tags_url, headers=encoded_headers)
                 if tags_response.status_code == 200:
                     repo['all_tags'] = [tag['name'] for tag in tags_response.json()]
+                elif tags_response.status_code == 403 and not GH_TOKEN:
+                    # 如果是未认证导致的访问限制，记录警告
+                    logger.warning(f"获取标签时达到API限制，建议提供GitHub Token以增加访问配额")
+                    repo['all_tags'] = []
                 else:
-                    repo['all_tags'] = repo.get('topics', [])
+                    logger.warning(f"获取标签失败，状态码: {tags_response.status_code}")
+                    repo['all_tags'] = []
             except Exception as e:
                 logger.warning(f"获取标签失败: {e}")
                 repo['all_tags'] = repo.get('topics', [])
@@ -597,14 +615,15 @@ def main():
                 # 避免 API 速率限制
                 time.sleep(1)
 
-        # 保存到 CSV
-        df = pd.DataFrame(data_list)
-        
-        # 按照"类型_年月日"的格式命名CSV文件
+        # 保存到 JSON
+        # 按照"类型_年月日"的格式命名JSON文件
         type_prefix = PROJECT_TAG.lower() if PROJECT_TAG and PROJECT_TAG.lower() != "all" else "all"
-        filename = f"{type_prefix}_projects_{datetime.now().strftime('%Y%m%d')}.csv"
+        filename = f"{type_prefix}_projects_{datetime.now().strftime('%Y%m%d')}.json"
         
-        df.to_csv(filename, index=False, encoding='utf_8_sig')
+        # 保存为JSON文件
+        with open(filename, 'w', encoding='utf_8_sig') as json_file:
+            json.dump(data_list, json_file, ensure_ascii=False, indent=2)
+        
         logger.info(f"✅ 完成！数据已保存为 {filename}")
         
         # 上传到OSS
@@ -613,7 +632,7 @@ def main():
         # 输出最终状态报告
         logger.info("\n===== 程序运行总结 =====")
         logger.info(f"- 处理项目数量: {len(data_list)}")
-        logger.info(f"- 数据已保存到CSV: {filename}")
+        logger.info(f"- 数据已保存到JSON: {filename}")
         logger.info(f"- OSS配置状态: {'已配置' if all([OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, OSS_BUCKET_NAME]) else '未完全配置'}")
         logger.info(f"- OSS上传状态: {'成功' if oss_upload_success else '失败'}")
         logger.info("====================")
