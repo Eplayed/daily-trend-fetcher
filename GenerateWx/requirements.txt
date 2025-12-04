@@ -1,0 +1,24 @@
+# 基础依赖
+requests==2.31.0
+oss2==2.16.0
+openai==1.55.3
+
+# oss2依赖的必要包
+aliyun-python-sdk-core
+aliyun-python-sdk-kms
+crcmod
+pycryptodome
+six
+
+# openai依赖的必要包
+anyio
+distro
+httpx
+jiter
+pydantic
+sniffio
+tqdm
+typing-extensions
+
+# 其他可能需要的包
+pyOpenSSL==23.2.0
